@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Task Manager</title>
+
+<style>
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    justify-content: center;
+    padding: 40px;
+}
+
+/* Container */
+.container {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(15px);
+    padding: 25px;
+    width: 450px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    color: white;
+}
+
+/* Title */
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Inputs */
+input {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+}
+
+/* Buttons */
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #ff7eb3;
+    color: white;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+/* Hover POP effect */
+button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+/* Task Card */
+.task {
+    background: white;
+    color: black;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: 0.3s;
+}
+
+/* Hover effect for tasks */
+.task:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Completed task */
+.completed {
+    text-decoration: line-through;
+    color: gray;
+}
+
+/* Action buttons */
+.task button {
+    margin-left: 5px;
+    padding: 5px 8px;
+}
+
+/* Filter buttons */
+.filter-buttons button {
+    background: #4facfe;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+<h2>Task Manager</h2>
+
+<input id="title" placeholder="Title">
+<input id="desc" placeholder="Description">
+<button onclick="addTask()">Add Task</button>
+
+<br><br>
+
+<input id="search" placeholder="Search..." oninput="loadTasks()">
+<br>
+
+<div class="filter-buttons">
+    <button onclick="filter='all'; loadTasks()">All</button>
+    <button onclick="filter='completed'; loadTasks()">Completed</button>
+    <button onclick="filter='pending'; loadTasks()">Pending</button>
+</div>
+
+<div id="tasks"></div>
+</div>
+
+<script>
+const API = "http://localhost:5000/api/tasks";
+let filter = "all";
+
+// Load tasks
+async function loadTasks() {
+    const res = await fetch(API);
+    let tasks = await res.json();
+
+    const search = document.getElementById("search").value.toLowerCase();
+
+    tasks = tasks.filter(t => t.title.toLowerCase().includes(search));
+
+    if (filter === "completed") tasks = tasks.filter(t => t.status);
+    if (filter === "pending") tasks = tasks.filter(t => !t.status);
+
+    const div = document.getElementById("tasks");
+    div.innerHTML = "";
+
+    tasks.forEach(t => {
+        div.innerHTML += `
+        <div class="task">
+           <div>
+    <strong class="${t.status ? 'completed' : ''}">
+        ${t.title}
+    </strong>
+    <br>
+    <small style="color: gray;">
+        ${t.description || ""}
+    </small>
+</div>
+            <div>
+                <button onclick="toggle('${t._id}', ${t.status})">✔</button>
+                <button onclick="editTask('${t._id}', '${t.title}')">✏</button>
+                <button onclick="del('${t._id}')">❌</button>
+            </div>
+        </div>`;
+    });
+}
+
+// Add
+async function addTask() {
+    const titleInput = document.getElementById("title");
+    const descInput = document.getElementById("desc");
+
+    const title = titleInput.value;
+    const description = descInput.value;
+
+    if (!title) return alert("Enter title");
+
+    await fetch(API, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({title, description})
+    });
+
+    // ✅ CLEAR INPUT FIELDS
+    titleInput.value = "";
+    descInput.value = "";
+
+    loadTasks();
+}
+
+// Toggle
+async function toggle(id, status) {
+    await fetch(`${API}/${id}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({status: !status})
+    });
+    loadTasks();
+}
+
+// Delete
+async function del(id) {
+    await fetch(`${API}/${id}`, { method: "DELETE" });
+    loadTasks();
+}
+
+// Edit
+async function editTask(id, oldTitle) {
+    const newTitle = prompt("Edit task", oldTitle);
+    if (!newTitle) return;
+
+    await fetch(`${API}/${id}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({title: newTitle})
+    });
+
+    loadTasks();
+}
+
+loadTasks();
+</script>
+
+</body>
+</html>
